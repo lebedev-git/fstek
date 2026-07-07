@@ -11,6 +11,9 @@ const ASSESS_FILE = path.join(DATA_DIR, "assessments.json");
 
 export const VALID_STATUS = ["pass", "fail", "na", "manual", "todo"];
 export const VALID_RESP = ["dev", "customer", "joint"];
+export const VALID_CLASS = ["К1", "К2", "К3"];
+export const VALID_UZ = ["УЗ-1", "УЗ-2", "УЗ-3", "УЗ-4"];
+export const VALID_PROJECT_STATUS = ["draft", "in_review", "attested"];
 
 let _measuresCache = null;
 export async function getMeasures() {
@@ -25,8 +28,31 @@ export async function readAll() {
   return JSON.parse(raw);
 }
 
+// Атомарная запись: temp-файл + rename. Падение посреди записи не портит БД.
+async function atomicWrite(file, content) {
+  const tmp = `${file}.${process.pid}.tmp`;
+  await fs.writeFile(tmp, content, "utf-8");
+  await fs.rename(tmp, file);
+}
+
 export async function writeAll(data) {
-  await fs.writeFile(ASSESS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  await atomicWrite(ASSESS_FILE, JSON.stringify(data, null, 2));
+}
+
+// ---- Сериализация мутаций ----
+// Все read-modify-write идут через одну очередь: исключает гонки и потерю
+// обновлений при параллельных запросах (Next.js обрабатывает их конкурентно).
+let _chain = Promise.resolve();
+async function mutate(fn) {
+  const run = _chain.then(async () => {
+    const data = await readAll();
+    const result = await fn(data);
+    await writeAll(data);
+    return result;
+  });
+  // цепочку не рвём на ошибке следующего звена
+  _chain = run.then(() => {}, () => {});
+  return run;
 }
 
 // ---- Проекты (карточки продуктов) ----
@@ -65,53 +91,60 @@ export async function getProject(id) {
 
 export async function createProject({ name, path: projPath = "", cls = "К3", uz = "УЗ-3", description = "" }) {
   if (!name || !name.trim()) throw new Error("name обязателен");
-  const data = await readAll();
-  let id = slugify(name);
-  let n = 1;
-  while (data.projects.some((p) => p.id === id)) id = `${slugify(name)}-${++n}`;
-  const now = new Date().toISOString();
-  const project = {
-    id,
-    name: name.trim(),
-    path: projPath,
-    class: cls,
-    uz,
-    description,
-    status: "draft", // draft | in_review | attested
-    createdAt: now,
-    updatedAt: now,
-  };
-  data.projects.push(project);
-  data.assessments[id] = data.assessments[id] || {};
-  await writeAll(data);
-  return project;
+  if (!VALID_CLASS.includes(cls)) throw new Error("недопустимый класс: " + cls);
+  if (!VALID_UZ.includes(uz)) throw new Error("недопустимый УЗ: " + uz);
+  return mutate((data) => {
+    let id = slugify(name);
+    let n = 1;
+    while (data.projects.some((p) => p.id === id)) id = `${slugify(name)}-${++n}`;
+    const now = new Date().toISOString();
+    const project = {
+      id,
+      name: name.trim(),
+      path: projPath,
+      class: cls,
+      uz,
+      description,
+      status: "draft", // draft | in_review | attested
+      createdAt: now,
+      updatedAt: now,
+    };
+    data.projects.push(project);
+    data.assessments[id] = data.assessments[id] || {};
+    return project;
+  });
 }
 
 export async function updateProject(id, patch) {
-  const data = await readAll();
-  const p = data.projects.find((x) => x.id === id);
-  if (!p) throw new Error("проект не найден");
-  for (const k of ["name", "path", "class", "uz", "description", "status"]) {
-    if (patch[k] !== undefined) p[k] = patch[k];
-  }
-  p.updatedAt = new Date().toISOString();
-  await writeAll(data);
-  return p;
+  if (patch.class !== undefined && !VALID_CLASS.includes(patch.class))
+    throw new Error("недопустимый класс: " + patch.class);
+  if (patch.uz !== undefined && !VALID_UZ.includes(patch.uz))
+    throw new Error("недопустимый УЗ: " + patch.uz);
+  if (patch.status !== undefined && !VALID_PROJECT_STATUS.includes(patch.status))
+    throw new Error("недопустимый статус проекта: " + patch.status);
+  return mutate((data) => {
+    const p = data.projects.find((x) => x.id === id);
+    if (!p) throw new Error("проект не найден");
+    for (const k of ["name", "path", "class", "uz", "description", "status"]) {
+      if (patch[k] !== undefined) p[k] = patch[k];
+    }
+    p.updatedAt = new Date().toISOString();
+    return p;
+  });
 }
 
 export async function deleteProject(id) {
-  const data = await readAll();
-  data.projects = data.projects.filter((x) => x.id !== id);
-  delete data.assessments[id];
-  await writeAll(data);
-  return true;
+  return mutate((data) => {
+    data.projects = data.projects.filter((x) => x.id !== id);
+    delete data.assessments[id];
+    return true;
+  });
 }
 
 // ---- Оценки ----
 
-export async function setAssessment(projectId, measureId, patch) {
-  const data = await readAll();
-  const measures = await getMeasures();
+// Применить одну оценку к data (без чтения/записи — вызывается внутри mutate).
+function applyAssessment(data, measures, projectId, measureId, patch) {
   if (!data.projects.some((p) => p.id === projectId)) throw new Error("проект не найден");
   if (!measures.measures.some((m) => m.id === measureId)) throw new Error("мера не найдена: " + measureId);
   if (!data.assessments[projectId]) data.assessments[projectId] = {};
@@ -125,18 +158,25 @@ export async function setAssessment(projectId, measureId, patch) {
   data.assessments[projectId][measureId] = cur;
   const proj = data.projects.find((p) => p.id === projectId);
   if (proj) proj.updatedAt = new Date().toISOString();
-  await writeAll(data);
   return cur;
 }
 
-// Пакетная простановка (для MCP-агента: сразу много мер)
+export async function setAssessment(projectId, measureId, patch) {
+  const measures = await getMeasures();
+  return mutate((data) => applyAssessment(data, measures, projectId, measureId, patch));
+}
+
+// Пакетная простановка (для MCP-агента: сразу много мер) — одна запись на весь пакет.
 export async function bulkSetAssessment(projectId, items) {
-  const results = [];
-  for (const it of items) {
-    const r = await setAssessment(projectId, it.measureId, it);
-    results.push({ measureId: it.measureId, ...r });
-  }
-  return results;
+  const measures = await getMeasures();
+  return mutate((data) => {
+    const results = [];
+    for (const it of items) {
+      const r = applyAssessment(data, measures, projectId, it.measureId, it);
+      results.push({ measureId: it.measureId, ...r });
+    }
+    return results;
+  });
 }
 
 // Авто-скан проекта: запускает детерминированный сканер по пути карточки

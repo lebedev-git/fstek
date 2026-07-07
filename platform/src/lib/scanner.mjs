@@ -1,7 +1,14 @@
 // Детерминированный авто-сканер кода под autoCheckable-меры №117.
 // Эвристики (regex по строкам), НЕ формальный анализ.
-// Принцип: risk-паттерн → fail с местом; good-паттерн → pass; неоднозначно → manual.
-// Ложный pass не выдаём.
+//
+// Принципы (после ревизии ядра):
+//  1. Сканируем ВСЕ файлы и копим ВСЕ совпадения (findAll), а не первое.
+//  2. Меры делятся на два типа:
+//     - "presence" (есть ли механизм защиты X): наличие good-паттерна → pass.
+//     - "vuln" (нет ли уязвимости): наличие risk-паттерна → fail;
+//        ОТСУТСТВИЕ risk НЕ доказывает безопасность → manual, не pass.
+//  3. Никогда не выдаём pass для vuln-мер по слабому косвенному признаку.
+//  4. .env НЕ сканируется: это защищённое хранилище, а не «секрет в коде».
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -11,7 +18,7 @@ const IGNORE_DIRS = new Set([
 ]);
 const EXT = new Set([
   ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte",
-  ".json", ".sql", ".yml", ".yaml", ".html", ".env", ".py", ".php",
+  ".json", ".sql", ".yml", ".yaml", ".html", ".py", ".php",
 ]);
 const MAX_FILES = 5000;
 const MAX_FILE_BYTES = 512 * 1024;
@@ -30,12 +37,11 @@ async function collectFiles(root) {
       if (out.length >= MAX_FILES) return;
       const full = path.join(dir, e.name);
       if (e.isDirectory()) {
-        if (IGNORE_DIRS.has(e.name) || e.name.startsWith(".") && e.name !== ".env") continue;
+        if (IGNORE_DIRS.has(e.name) || e.name.startsWith(".")) continue;
         await walk(full);
       } else if (e.isFile()) {
         const ext = path.extname(e.name).toLowerCase();
-        const isEnv = e.name === ".env" || e.name.startsWith(".env");
-        if (!EXT.has(ext) && !isEnv) continue;
+        if (!EXT.has(ext)) continue; // .env и прочее — не сканируем
         out.push({ abs: full, rel: path.relative(root, full) });
       }
     }
@@ -59,106 +65,137 @@ async function loadContents(files) {
   return loaded;
 }
 
-// Поиск первого совпадения regex по всем файлам → {rel, line, text}
-function findFirst(files, regex) {
+// Все совпадения regex: максимум одно на файл (широта охвата без флуда).
+function findAll(files, regex) {
+  const hits = [];
   for (const f of files) {
     for (let i = 0; i < f.lines.length; i++) {
       if (regex.test(f.lines[i])) {
-        return { rel: f.rel, line: i + 1, text: f.lines[i].trim().slice(0, 120) };
+        hits.push({ rel: f.rel, line: i + 1, text: f.lines[i].trim().slice(0, 120) });
+        break;
       }
     }
   }
-  return null;
+  return hits;
 }
 
-function evid(hit) {
-  return hit ? `${hit.rel}:${hit.line} — ${hit.text}` : "";
+// Evidence из набора хитов: первый + счётчик остальных.
+function evid(hits) {
+  if (!hits || !hits.length) return "";
+  const h = hits[0];
+  const more = hits.length > 1 ? ` (+${hits.length - 1} ещё в др. файлах)` : "";
+  return `${h.rel}:${h.line} — ${h.text}${more}`;
 }
 
-// ---- Правила. Каждое: (files) => { status, evidence, note } ----
+// presence-мера: good → pass, иначе manual.
+function presence(files, good, foundNote, missNote) {
+  const g = findAll(files, good);
+  if (g.length) return { status: "pass", evidence: evid(g), note: foundNote };
+  return { status: "manual", evidence: "", note: missNote };
+}
 
+// vuln-мера: risk → fail. Иначе manual (отсутствие риска ≠ доказанная защита).
+// Опциональный safe-паттерн лишь дополняет note, но НЕ даёт pass сам по себе.
+function vuln(files, risk, riskNote, safe, safeNote, cleanNote) {
+  const r = findAll(files, risk);
+  if (r.length) return { status: "fail", evidence: evid(r), note: riskNote };
+  if (safe) {
+    const s = findAll(files, safe);
+    if (s.length) return { status: "manual", evidence: evid(s), note: safeNote };
+  }
+  return { status: "manual", evidence: "", note: cleanNote };
+}
+
+// ---- Правила ----
 const RULES = {
-  "V-3": (f) => {
-    const good = findFirst(f, /zxcvbn|passwordStrength|min(imum)?[_ ]?length|\.min\(\s*[68]|password.{0,20}(length|complexity)/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Найдена проверка пароля" };
-    return { status: "manual", evidence: "", note: "Проверка сложности пароля не обнаружена — подтвердить вручную" };
-  },
-  "V-4": (f) => {
-    const good = findFirst(f, /rate[-_ ]?limit|express-rate-limit|loginAttempts|failedAttempts|lockout|bruteforce|too many attempts/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Найден механизм ограничения попыток" };
-    return { status: "manual", evidence: "", note: "Блокировка после N попыток не обнаружена" };
-  },
-  "V-5": (f) => {
-    const good = findFirst(f, /\bmfa\b|2fa|two[-_ ]?factor|\btotp\b|otpauth|speakeasy|authenticator|otplib/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Найдены признаки MFA" };
-    return { status: "manual", evidence: "", note: "MFA не обнаружена" };
-  },
+  "V-3": (f) => presence(f,
+    /zxcvbn|passwordStrength|min(imum)?[_ ]?length|\.min\(\s*[68]|password.{0,20}(length|complexity)/i,
+    "Найдена проверка пароля",
+    "Проверка сложности пароля не обнаружена — подтвердить вручную"),
+
+  "V-4": (f) => presence(f,
+    /rate[-_ ]?limit|express-rate-limit|loginAttempts|failedAttempts|lockout|bruteforce|too many attempts/i,
+    "Найден механизм ограничения попыток",
+    "Блокировка после N попыток не обнаружена"),
+
+  "V-5": (f) => presence(f,
+    /\bmfa\b|2fa|two[-_ ]?factor|\btotp\b|otpauth|speakeasy|authenticator|otplib/i,
+    "Найдены признаки MFA",
+    "MFA не обнаружена"),
+
+  // Хеш паролей: risk (сравнение в открытом виде) приоритетнее presence.
   "V-6": (f) => {
-    const good = findFirst(f, /bcrypt|argon2|scrypt|pbkdf2/i);
-    const risk = findFirst(f, /password\s*===\s*|password\s*==\s*[^=]|plain[_ ]?password/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Хеширование паролей найдено" };
-    if (risk) return { status: "fail", evidence: evid(risk), note: "Возможное сравнение пароля в открытом виде" };
-    return { status: "manual", evidence: "", note: "Хеширование не обнаружено (возможно, внешняя аутентификация)" };
+    const r = findAll(f, /password\s*===?\s*(req\.|body\.|input|['"])|plain[_ ]?password/i);
+    if (r.length) return { status: "fail", evidence: evid(r), note: "Похоже на сравнение пароля в открытом виде" };
+    return presence(f, /bcrypt|argon2|scrypt|pbkdf2/i,
+      "Хеширование паролей найдено",
+      "Хеширование не обнаружено (возможно, внешняя аутентификация) — подтвердить");
   },
-  "VI-1": (f) => {
-    const good = findFirst(f, /\brole\b|\brbac\b|permission|\bcasl\b|\bability\b|hasRole|requireRole/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Признаки ролевой модели" };
-    return { status: "manual", evidence: "", note: "Ролевая модель не обнаружена" };
-  },
-  "VI-3": (f) => {
-    const good = findFirst(f, /maxAge|expiresIn|sessionTimeout|session.{0,20}expire|cookie.{0,20}maxAge|jwt.{0,20}expires/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Ограничение времени сессии найдено" };
-    return { status: "manual", evidence: "", note: "Таймаут сессии не обнаружен" };
-  },
-  "VI-4": (f) => {
-    const good = findFirst(f, /getServerSession|requireAuth|withAuth|isAuthenticated|verifyToken|middleware.*auth|auth.*middleware/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Признаки серверной авторизации" };
-    return { status: "manual", evidence: "", note: "Серверная авторизация эндпоинтов не подтверждена — проверить каждый API-роут" };
-  },
-  "VII-1": (f) => {
-    const good = findFirst(f, /winston|pino|bunyan|\blog4|logger\.(info|warn|error|audit)|auditLog/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Найдена система логирования" };
-    return { status: "manual", evidence: "", note: "Структурированное логирование не обнаружено" };
-  },
-  "VII-2": (f) => {
-    const good = findFirst(f, /req\.ip|x-forwarded-for|remoteAddress|getClientIp|request\.ip/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Фиксация IP найдена" };
-    return { status: "manual", evidence: "", note: "Фиксация IP в логах не обнаружена" };
-  },
-  "VIII-1": (f) => {
-    const risk = findFirst(f, /(query|execute|raw)\s*\(\s*[`'"].{0,80}(SELECT|INSERT|UPDATE|DELETE|WHERE).{0,80}(\$\{|['"]\s*\+)/i);
-    const orm = findFirst(f, /prisma|sequelize|typeorm|drizzle|knex|mongoose|\.\$queryRaw|\?\s*,\s*\[|\$1/i);
-    if (risk) return { status: "fail", evidence: evid(risk), note: "Похоже на конкатенацию SQL — риск инъекции" };
-    if (orm) return { status: "pass", evidence: evid(orm), note: "ORM/параметризация, сырой конкатенации не найдено" };
-    return { status: "manual", evidence: "", note: "SQL-доступ не распознан — проверить вручную" };
-  },
-  "VIII-2": (f) => {
-    const risk = findFirst(f, /dangerouslySetInnerHTML|\.innerHTML\s*=|v-html|\.html\(|document\.write/i);
-    const jsx = findFirst(f, /\.(jsx|tsx)$|from\s+['"]react['"]/i);
-    if (risk) return { status: "fail", evidence: evid(risk), note: "Прямая вставка HTML — риск XSS, проверить санитизацию" };
-    if (jsx) return { status: "pass", evidence: evid(jsx), note: "React экранирует по умолчанию; ручных innerHTML не найдено" };
-    return { status: "manual", evidence: "", note: "Экранирование вывода не подтверждено" };
-  },
-  "VIII-3": (f) => {
-    const good = findFirst(f, /\bcsrf\b|csurf|xsrf|sameSite|SameSite/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Признаки защиты от CSRF" };
-    return { status: "manual", evidence: "", note: "Защита от CSRF не обнаружена (для API на токенах может быть неприменимо)" };
-  },
-  "VIII-5": (f) => {
-    const good = findFirst(f, /helmet|Strict-Transport-Security|Content-Security-Policy|X-Frame-Options|\bhsts\b/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Найдены безопасные заголовки" };
-    return { status: "manual", evidence: "", note: "Безопасные заголовки в коде не найдены (могут задаваться на прокси)" };
-  },
-  "IX-1": (f) => {
-    const good = findFirst(f, /forceSSL|requireHTTPS|Strict-Transport-Security|redirect.{0,15}https|https:\/\/[^"'\s]*\$\{/i);
-    if (good) return { status: "pass", evidence: evid(good), note: "Признаки принудительного HTTPS" };
-    return { status: "manual", evidence: "", note: "Принуждение HTTPS в коде не найдено (обычно на реверс-прокси)" };
-  },
+
+  "VI-1": (f) => presence(f,
+    /\brole\b|\brbac\b|permission|\bcasl\b|\bability\b|hasRole|requireRole/i,
+    "Признаки ролевой модели",
+    "Ролевая модель не обнаружена"),
+
+  "VI-3": (f) => presence(f,
+    /maxAge|expiresIn|sessionTimeout|session.{0,20}expire|cookie.{0,20}maxAge|jwt.{0,20}expires/i,
+    "Ограничение времени сессии найдено",
+    "Таймаут сессии не обнаружен"),
+
+  "VI-4": (f) => presence(f,
+    /getServerSession|requireAuth|withAuth|isAuthenticated|verifyToken|middleware.*auth|auth.*middleware/i,
+    "Признаки серверной авторизации",
+    "Серверная авторизация эндпоинтов не подтверждена — проверить каждый API-роут"),
+
+  "VII-1": (f) => presence(f,
+    /winston|pino|bunyan|\blog4|logger\.(info|warn|error|audit)|auditLog/i,
+    "Найдена система логирования",
+    "Структурированное логирование не обнаружено"),
+
+  "VII-2": (f) => presence(f,
+    /req\.ip|x-forwarded-for|remoteAddress|getClientIp|request\.ip/i,
+    "Фиксация IP найдена",
+    "Фиксация IP в логах не обнаружена"),
+
+  // SQL: конкатенация → fail. ORM-признак → лишь manual (не доказывает отсутствие
+  // сырых запросов в других местах). Фаззи-токены ($1, ?,[ ) убраны — давали ложный pass.
+  "VIII-1": (f) => vuln(f,
+    /(query|execute|raw)\s*\(\s*[`'"].{0,80}(SELECT|INSERT|UPDATE|DELETE|WHERE).{0,80}(\$\{|['"]\s*\+)/i,
+    "Похоже на конкатенацию SQL — риск инъекции",
+    /\b(prisma|sequelize|typeorm|drizzle|knex|mongoose)\b|\$queryRaw/i,
+    "Найден ORM/параметризация, сырой конкатенации не видно — подтвердить отсутствие raw-запросов",
+    "SQL-доступ не распознан — проверить вручную"),
+
+  // XSS: опасный sink → fail. React (авто-экранирование) → manual (CSP не проверяется здесь).
+  "VIII-2": (f) => vuln(f,
+    /dangerouslySetInnerHTML|\.innerHTML\s*=|v-html|\.html\(|document\.write/i,
+    "Прямая вставка HTML — риск XSS, проверить санитизацию",
+    /\.(jsx|tsx)$|from\s+['"]react['"]/i,
+    "React экранирует по умолчанию, ручных вставок не найдено — подтвердить CSP",
+    "Экранирование вывода не подтверждено"),
+
+  "VIII-3": (f) => presence(f,
+    /\bcsrf\b|csurf|xsrf|sameSite|SameSite/i,
+    "Признаки защиты от CSRF",
+    "Защита от CSRF не обнаружена (для API на токенах может быть неприменимо)"),
+
+  "VIII-5": (f) => presence(f,
+    /helmet|Strict-Transport-Security|Content-Security-Policy|X-Frame-Options|\bhsts\b/i,
+    "Найдены безопасные заголовки",
+    "Безопасные заголовки в коде не найдены (могут задаваться на прокси)"),
+
+  "IX-1": (f) => presence(f,
+    /forceSSL|requireHTTPS|Strict-Transport-Security|redirect.{0,15}https|https:\/\/[^"'\s]*\$\{/i,
+    "Признаки принудительного HTTPS",
+    "Принуждение HTTPS в коде не найдено (обычно на реверс-прокси)"),
+
+  // Секреты: хардкод-секрет → fail. process.env → pass (секреты вне кода).
+  // .env не сканируется, поэтому ключи в .env fail не дают.
   "IX-4": (f) => {
-    const risk = findFirst(f, /(sk_live_[0-9a-zA-Z]{10,}|AKIA[0-9A-Z]{16}|-----BEGIN[^-]*PRIVATE KEY|(api[_-]?key|secret|password|token)\s*[:=]\s*['"][A-Za-z0-9_\-\/+]{16,}['"])/);
-    const good = findFirst(f, /process\.env\.[A-Z]/);
-    if (risk) return { status: "fail", evidence: evid(risk), note: "Похоже на секрет в коде — вынести в переменные окружения" };
-    if (good) return { status: "pass", evidence: evid(good), note: "Секреты читаются из окружения" };
+    const r = findAll(f, /(sk_live_[0-9a-zA-Z]{10,}|AKIA[0-9A-Z]{16}|-----BEGIN[^-]*PRIVATE KEY|(api[_-]?key|secret|password|token)\s*[:=]\s*['"][A-Za-z0-9_\-\/+]{16,}['"])/);
+    if (r.length) return { status: "fail", evidence: evid(r), note: "Похоже на секрет в коде — вынести в переменные окружения" };
+    const g = findAll(f, /process\.env\.[A-Z]/);
+    if (g.length) return { status: "pass", evidence: evid(g), note: "Секреты читаются из окружения" };
     return { status: "manual", evidence: "", note: "Работа с секретами не распознана" };
   },
 };
