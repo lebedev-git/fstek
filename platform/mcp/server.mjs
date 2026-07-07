@@ -17,10 +17,70 @@ import {
   VALID_STATUS,
 } from "../src/lib/core.mjs";
 
-const server = new McpServer({ name: "fstek-117-tracker", version: "0.1.0" });
+// Handshake: клиент видит это сразу при подключении (initialize response).
+const INSTRUCTIONS = `Ты — аудитор соответствия ГИС Приказу ФСТЭК №117.
+Подключение установлено. Порядок работы:
+1. Подтверди готовность: вызови list_measures (это и есть «подключился, жду»).
+2. Заведи карточку: create_project (name, path — реальный путь к коду, cls, uz).
+3. Автоскан: scan_project по этой карточке.
+4. Разбери всё, что осталось manual/fail: проставь оценки через set_assessment
+   или submit_assessment — ОБЯЗАТЕЛЬНО с evidence (файл:строка) и note.
+5. Сведи итог: get_project → отдай человеку.
+Полный протокол и правила статусов — инструмент get_protocol (или ресурс protocol://fstek-117).`;
+
+// Полный протокол работы — выдаётся по запросу (tool get_protocol / resource).
+const PROTOCOL = `# Протокол аудита ФСТЭК №117 (для агента)
+
+## Шаги
+0. list_measures — каталог требований = твой чек-лист. Вызов = сигнал «подключился».
+1. create_project — базовые поля: name, path (путь к коду на этом сервере), cls (К1..К3), uz (УЗ-1..4).
+2. scan_project — детерминированный автоскан. Пишет находки с пометкой [авто-скан].
+3. Ручной разбор: для КАЖДОЙ меры со статусом manual или fail открой код по path
+   и прими решение. Ставь оценку через set_assessment / submit_assessment.
+4. get_project — финальная сводка: балл, разбивка по группам, пробелы.
+
+## Статусы (VALID_STATUS)
+- pass   — мера выполнена. Ставить ТОЛЬКО с evidence (файл:строка или ссылка на артефакт).
+- fail   — мера нарушена/отсутствует. evidence обязателен: где именно дыра.
+- manual — нужен человек/документ (организационные, инфраструктурные меры). Автоскан
+           не доказывает pass для vuln-мер (SQL/XSS/секреты) — не завышай.
+- na     — неприменимо к системе. В знаменатель балла не идёт.
+- todo   — ещё не смотрел.
+
+## Правила
+- Никогда не ставь pass без доказательства. Нет доказательства → manual, не pass.
+- Зоны ответственности: dev — код (можешь оценить), customer/joint — организация/инфра
+  (обычно manual, решает заказчик/оператор). См. поле responsibility в мерах.
+- Балл = трекинг-готовность, НЕ гарантия аттестации. Финальный набор мер закрепляет
+  модель угроз конкретной системы + методички ФСТЭК.`;
+
+const server = new McpServer(
+  { name: "fstek-117-tracker", version: "0.1.0" },
+  { instructions: INSTRUCTIONS }
+);
 
 const ok = (obj) => ({ content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] });
+const okText = (text) => ({ content: [{ type: "text", text }] });
 const fail = (msg) => ({ content: [{ type: "text", text: `Ошибка: ${msg}` }], isError: true });
+
+// 0. Протокол работы — гарантированный способ для агента получить порядок действий.
+server.registerTool(
+  "get_protocol",
+  {
+    title: "Протокол аудита",
+    description: "Вернуть протокол работы аудитора: шаги, семантику статусов, правила оценки. Прочитай ПЕРВЫМ, если не видел instructions.",
+    inputSchema: {},
+  },
+  async () => okText(PROTOCOL)
+);
+
+// Тот же протокол как ресурс (для клиентов, читающих resources).
+server.registerResource(
+  "protocol",
+  "protocol://fstek-117",
+  { title: "Протокол аудита ФСТЭК №117", description: "Порядок работы агента-аудитора", mimeType: "text/markdown" },
+  async (uri) => ({ contents: [{ uri: uri.href, text: PROTOCOL }] })
+);
 
 // 1. Справочник мер №117
 server.registerTool(
