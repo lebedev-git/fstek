@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { ShieldCheck, Boxes, BookOpen, Library } from "lucide-react";
+import { ShieldCheck, Boxes, Library } from "lucide-react";
 
 const nav = [
   { href: "/", label: "Продукты", icon: Boxes },
-  { href: "/about", label: "О №117", icon: BookOpen },
   { href: "/glossary", label: "Глоссарий", icon: Library },
 ];
 
