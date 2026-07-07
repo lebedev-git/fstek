@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ProjectTabs from "@/components/ProjectTabs";
 import ScoreRing from "@/components/ScoreRing";
 import ScanButton from "@/components/ScanButton";
+import AnalyzeButton from "@/components/AnalyzeButton";
 import { STATUS_META, STATUS_ORDER } from "@/lib/ui";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,10 @@ export default async function ProjectDashboard({ params }) {
           </div>
         </section>
 
-        <ScanButton projectId={project.id} hasPath={!!project.path && project.path !== "(пример)"} />
+        <div className="grid md:grid-cols-2 gap-4">
+          <ScanButton projectId={project.id} hasPath={!!project.path && project.path !== "(пример)"} />
+          <AnalyzeButton projectId={project.id} defaultPath={project.path} />
+        </div>
 
         <section>
           <h2 className="text-lg font-semibold mb-3">Готовность по группам мер</h2>

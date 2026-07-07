@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "fstek-117": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["C:\\Disk D\\Project\\fstek\\platform\\mcp\\server.mjs"]
+    }
+  }
+}
