@@ -21,7 +21,7 @@ export default function AnalyzeButton({ projectId, defaultPath = "" }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "не удалось запустить");
-      setMsg(`Окно Claude открыто для: ${json.path}`);
+      setMsg(`Сессия Claude открыта в IDE для: ${json.path}`);
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -37,7 +37,8 @@ export default function AnalyzeButton({ projectId, defaultPath = "" }) {
             <Bot size={16} /> Анализ через Claude
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Откроет новое окно Claude: он сам просканирует код и разберёт ручные меры через MCP. Локально (Windows).
+            Откроет новую сессию Claude прямо в Antigravity: он сам просканирует код и разберёт
+            ручные меры через MCP. Подтверждения — штатные, в интерфейсе IDE.
           </p>
         </div>
         <button
@@ -45,7 +46,7 @@ export default function AnalyzeButton({ projectId, defaultPath = "" }) {
           disabled={busy}
           className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-800 disabled:opacity-50"
         >
-          {busy ? "Запускаю…" : "Открыть окно Claude"}
+          {busy ? "Запускаю…" : "Анализ в Claude"}
         </button>
       </div>
 
@@ -59,7 +60,7 @@ export default function AnalyzeButton({ projectId, defaultPath = "" }) {
       {err && <p className="text-fail text-sm">⚠ {err}</p>}
       {msg && (
         <p className="text-sm text-slate-600 bg-slate-50 rounded-lg p-3">
-          ✓ {msg}. Следи за анализом в открывшемся окне; оценки появятся в дашборде по мере работы (обнови страницу).
+          ✓ {msg}. Переключись на вкладку Claude в Antigravity (если промпт не отправился — нажми Enter). Оценки появятся в дашборде по мере работы — обнови страницу.
         </p>
       )}
     </div>
