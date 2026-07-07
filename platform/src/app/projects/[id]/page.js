@@ -11,7 +11,7 @@ export default async function ProjectDashboard({ params }) {
   const data = await getProject(params.id);
   if (!data) notFound();
   const meta = await getMeasures();
-  const { project, score, byGroup } = data;
+  const { project, score, byGroup, assessment } = data;
 
   return (
     <div>
@@ -44,23 +44,45 @@ export default async function ProjectDashboard({ params }) {
               const gc = byGroup[g.id];
               if (!gc || gc.total === 0) return null;
               const segs = STATUS_ORDER.map((s) => ({ s, n: gc[s] })).filter((x) => x.n > 0);
+              const groupMeasures = meta.measures.filter((m) => m.group === g.id);
               return (
-                <div key={g.id} className="bg-white rounded-lg border border-slate-200 p-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium">
-                      <span className="text-slate-400">{g.id}.</span> {g.title}
-                    </span>
-                    <span className="text-slate-500 shrink-0 ml-3">{gc.pass}/{gc.total} выполнено</span>
-                  </div>
-                  {g.desc && <p className="text-xs text-slate-500 mb-2 leading-relaxed">{g.desc}</p>}
-                  <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
-                    {segs.map((x) => (
-                      <div key={x.s} className={STATUS_META[x.s].cls}
-                        style={{ width: `${(x.n / gc.total) * 100}%` }}
-                        title={`${STATUS_META[x.s].label}: ${x.n}`} />
-                    ))}
-                  </div>
-                </div>
+                <details key={g.id} className="group bg-white rounded-lg border border-slate-200 p-4">
+                  <summary className="cursor-pointer list-none marker:hidden">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium">
+                        <span className="text-slate-300 group-open:rotate-90 inline-block transition-transform mr-1">▸</span>
+                        <span className="text-slate-400">{g.id}.</span> {g.title}
+                      </span>
+                      <span className="text-slate-500 shrink-0 ml-3">{gc.pass}/{gc.total} выполнено</span>
+                    </div>
+                    {g.desc && <p className="text-xs text-slate-500 mb-2 leading-relaxed pl-4">{g.desc}</p>}
+                    <div className="flex h-3 rounded-full overflow-hidden bg-slate-100 ml-4">
+                      {segs.map((x) => (
+                        <div key={x.s} className={STATUS_META[x.s].cls}
+                          style={{ width: `${(x.n / gc.total) * 100}%` }}
+                          title={`${STATUS_META[x.s].label}: ${x.n}`} />
+                      ))}
+                    </div>
+                  </summary>
+                  <ul className="mt-3 ml-4 divide-y divide-slate-100 border-t border-slate-100">
+                    {groupMeasures.map((m) => {
+                      const st = assessment[m.id]?.status || "todo";
+                      return (
+                        <li key={m.id} className="flex items-start gap-3 py-2">
+                          <span className={`${STATUS_META[st].cls} w-2.5 h-2.5 rounded-full mt-1.5 shrink-0`}
+                            title={STATUS_META[st].label} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-slate-700">
+                              <span className="font-mono text-xs text-slate-400 mr-2">{m.id}</span>
+                              {m.title}
+                            </div>
+                          </div>
+                          <span className="text-xs text-slate-500 shrink-0">{STATUS_META[st].label}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
               );
             })}
           </div>

@@ -9,7 +9,7 @@
       "description": "Демонстрационная карточка для показа визуала",
       "status": "in_review",
       "createdAt": "2026-07-01T10:00:00.000Z",
-      "updatedAt": "2026-07-07T10:00:00.000Z"
+      "updatedAt": "2026-07-07T15:52:40.351Z"
     },
     {
       "id": "1",
@@ -113,29 +113,29 @@
         "note": ""
       },
       "V-3": {
-        "status": "fail",
-        "evidence": "",
-        "note": "нет проверки сложности пароля"
+        "status": "pass",
+        "evidence": "src\\components\\features\\auth\\PortalAuthFlow.js:52 — if ((formData.password || \"\").length < 8) { (+2 ещё в др. файлах)",
+        "note": "Найдена проверка пароля [авто-скан]"
       },
       "V-4": {
-        "status": "fail",
-        "evidence": "",
-        "note": "нет лимита попыток"
+        "status": "pass",
+        "evidence": "src\\lib\\mayakSova.js:143 — status === 429 || haystack.includes(\"rate limit\") || haystack.includes(\"too many requests\") || haystack.includes(\"quota\"",
+        "note": "Найден механизм ограничения попыток [авто-скан]"
       },
       "V-5": {
-        "status": "todo",
-        "evidence": "",
-        "note": ""
+        "status": "pass",
+        "evidence": "data\\mayak-session-tokens.json:30 — \"token\": \"1de665b2bb720bb4e254ae6cee5d119fd1262fa0eab7709968d9da4eab9a04f4\", (+14 ещё в др. файлах)",
+        "note": "Найдены признаки MFA [авто-скан]"
       },
       "V-6": {
-        "status": "pass",
-        "evidence": "argon2 в auth",
-        "note": ""
+        "status": "manual",
+        "evidence": "",
+        "note": "Хеширование не обнаружено (возможно, внешняя аутентификация) — подтвердить [авто-скан]"
       },
       "VI-1": {
         "status": "pass",
-        "evidence": "RBAC middleware",
-        "note": ""
+        "evidence": "data\\mayakData.json:491 — \"role\": [ (+42 ещё в др. файлах)",
+        "note": "Признаки ролевой модели [авто-скан]"
       },
       "VI-2": {
         "status": "manual",
@@ -143,49 +143,49 @@
         "note": "проверить роль аудитора"
       },
       "VI-3": {
-        "status": "fail",
-        "evidence": "",
-        "note": "сессия без таймаута"
+        "status": "pass",
+        "evidence": "src\\components\\features\\tools-2\\trainer.js:1935 — expiresAt={sessionBlockingTask?.expiresAt} (+4 ещё в др. файлах)",
+        "note": "Ограничение времени сессии найдено [авто-скан]"
       },
       "VI-4": {
-        "status": "todo",
-        "evidence": "",
-        "note": "аудит эндпоинтов"
+        "status": "pass",
+        "evidence": "src\\components\\features\\tools-2\\admin.js:145 — const [isAuthenticated, setIsAuthenticated] = useState(false); (+3 ещё в др. файлах)",
+        "note": "Признаки серверной авторизации [авто-скан]"
       },
       "VII-1": {
-        "status": "pass",
-        "evidence": "audit log",
-        "note": ""
+        "status": "manual",
+        "evidence": "",
+        "note": "Структурированное логирование не обнаружено [авто-скан]"
       },
       "VII-2": {
         "status": "manual",
         "evidence": "",
-        "note": "проверить наличие IP"
+        "note": "Фиксация IP в логах не обнаружена [авто-скан]"
       },
       "VIII-1": {
-        "status": "pass",
-        "evidence": "ORM параметризация",
-        "note": ""
+        "status": "manual",
+        "evidence": "",
+        "note": "SQL-доступ не распознан — проверить вручную [авто-скан]"
       },
       "VIII-2": {
         "status": "fail",
-        "evidence": "",
-        "note": "нет CSP"
+        "evidence": "src\\pages\\_document.js:18 — dangerouslySetInnerHTML={{",
+        "note": "Прямая вставка HTML — риск XSS, проверить санитизацию [авто-скан]"
       },
       "VIII-3": {
-        "status": "todo",
-        "evidence": "",
-        "note": ""
+        "status": "pass",
+        "evidence": "src\\components\\features\\tools-2\\actions.js:26 — document.cookie = `activated_key=${encodeURIComponent(JSON.stringify(newItem))}; path=/; expires=${expires.toUTCString() (+8 ещё в др. файлах)",
+        "note": "Признаки защиты от CSRF [авто-скан]"
       },
       "VIII-5": {
-        "status": "fail",
+        "status": "manual",
         "evidence": "",
-        "note": "нет HSTS/X-Frame"
+        "note": "Безопасные заголовки в коде не найдены (могут задаваться на прокси) [авто-скан]"
       },
       "IX-1": {
         "status": "pass",
-        "evidence": "TLS на прокси",
-        "note": ""
+        "evidence": "scripts\\telegram-bot.js:37 — const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`; (+20 ещё в др. файлах)",
+        "note": "Признаки принудительного HTTPS [авто-скан]"
       },
       "IX-2": {
         "status": "todo",
@@ -194,8 +194,8 @@
       },
       "IX-4": {
         "status": "pass",
-        "evidence": ".env вне репо",
-        "note": ""
+        "evidence": "instrumentation.js:2 — if (process.env.NEXT_RUNTIME === 'nodejs') { (+21 ещё в др. файлах)",
+        "note": "Секреты читаются из окружения [авто-скан]"
       },
       "XI-3": {
         "status": "manual",
