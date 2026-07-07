@@ -1,18 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Bot } from "lucide-react";
+import { Bot, Copy, Check } from "lucide-react";
 
 export default function AnalyzeButton({ projectId, defaultPath = "" }) {
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
+  const [prompt, setPrompt] = useState("");
+  const [copied, setCopied] = useState(false);
   const [err, setErr] = useState("");
   const [pathVal, setPathVal] = useState(defaultPath && defaultPath !== "(пример)" ? defaultPath : "");
 
   async function run() {
     setBusy(true);
     setErr("");
-    setMsg(null);
+    setCopied(false);
+    setPrompt("");
     try {
       const res = await fetch(`/api/projects/${projectId}/analyze`, {
         method: "POST",
@@ -20,12 +22,27 @@ export default function AnalyzeButton({ projectId, defaultPath = "" }) {
         body: JSON.stringify(pathVal ? { path: pathVal } : {}),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "не удалось запустить");
-      setMsg(`Сессия Claude открыта в IDE для: ${json.path}`);
+      if (!res.ok) throw new Error(json.error || "ошибка");
+      setPrompt(json.prompt);
+      try {
+        await navigator.clipboard.writeText(json.prompt);
+        setCopied(true);
+      } catch {
+        /* буфер недоступен — покажем текст для ручного копирования */
+      }
     } catch (e) {
       setErr(e.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function copyAgain() {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true);
+    } catch {
+      setErr("буфер недоступен — выдели и скопируй текст вручную");
     }
   }
 
@@ -37,8 +54,8 @@ export default function AnalyzeButton({ projectId, defaultPath = "" }) {
             <Bot size={16} /> Анализ через Claude
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Откроет новую сессию Claude прямо в Antigravity: он сам просканирует код и разберёт
-            ручные меры через MCP. Подтверждения — штатные, в интерфейсе IDE.
+            Готовит промпт для анализа. Вставь его в новую сессию Claude в Antigravity —
+            он сам просканирует код и разберёт меры через MCP.
           </p>
         </div>
         <button
@@ -46,7 +63,7 @@ export default function AnalyzeButton({ projectId, defaultPath = "" }) {
           disabled={busy}
           className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-800 disabled:opacity-50"
         >
-          {busy ? "Запускаю…" : "Анализ в Claude"}
+          {busy ? "Готовлю…" : "Подготовить промпт"}
         </button>
       </div>
 
@@ -58,10 +75,30 @@ export default function AnalyzeButton({ projectId, defaultPath = "" }) {
       />
 
       {err && <p className="text-fail text-sm">⚠ {err}</p>}
-      {msg && (
-        <p className="text-sm text-slate-600 bg-slate-50 rounded-lg p-3">
-          ✓ {msg}. Переключись на вкладку Claude в Antigravity (если промпт не отправился — нажми Enter). Оценки появятся в дашборде по мере работы — обнови страницу.
-        </p>
+
+      {prompt && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            {copied ? (
+              <span className="text-pass flex items-center gap-1"><Check size={15} /> Промпт скопирован в буфер</span>
+            ) : (
+              <button onClick={copyAgain} className="text-brand flex items-center gap-1 hover:underline">
+                <Copy size={15} /> Скопировать промпт
+              </button>
+            )}
+          </div>
+          <ol className="text-xs text-slate-600 list-decimal pl-5 space-y-0.5">
+            <li>В панели Claude (слева) нажми <b>New session</b>.</li>
+            <li>Вставь промпт (<b>Ctrl+V</b>) и нажми Enter.</li>
+            <li>Claude выполнит анализ; оценки появятся здесь — обнови страницу.</li>
+          </ol>
+          <textarea
+            readOnly
+            value={prompt}
+            onFocus={(e) => e.target.select()}
+            className="w-full border rounded-md px-3 py-2 text-xs font-mono h-28 bg-slate-50"
+          />
+        </div>
       )}
     </div>
   );
