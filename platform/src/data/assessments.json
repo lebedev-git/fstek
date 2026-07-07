@@ -1,0 +1,124 @@
+{
+  "projects": [
+    {
+      "id": "demo",
+      "name": "Демо-проект: госсайт с ПДн",
+      "path": "(пример)",
+      "class": "К3",
+      "uz": "УЗ-3",
+      "description": "Демонстрационная карточка для показа визуала",
+      "status": "in_review",
+      "createdAt": "2026-07-01T10:00:00.000Z",
+      "updatedAt": "2026-07-07T10:00:00.000Z"
+    }
+  ],
+  "assessments": {
+    "demo": {
+      "V-1": {
+        "status": "pass",
+        "evidence": "user.id UUID в схеме",
+        "note": ""
+      },
+      "V-2": {
+        "status": "pass",
+        "evidence": "",
+        "note": ""
+      },
+      "V-3": {
+        "status": "fail",
+        "evidence": "",
+        "note": "нет проверки сложности пароля"
+      },
+      "V-4": {
+        "status": "fail",
+        "evidence": "",
+        "note": "нет лимита попыток"
+      },
+      "V-5": {
+        "status": "todo",
+        "evidence": "",
+        "note": ""
+      },
+      "V-6": {
+        "status": "pass",
+        "evidence": "argon2 в auth",
+        "note": ""
+      },
+      "VI-1": {
+        "status": "pass",
+        "evidence": "RBAC middleware",
+        "note": ""
+      },
+      "VI-2": {
+        "status": "manual",
+        "evidence": "",
+        "note": "проверить роль аудитора"
+      },
+      "VI-3": {
+        "status": "fail",
+        "evidence": "",
+        "note": "сессия без таймаута"
+      },
+      "VI-4": {
+        "status": "todo",
+        "evidence": "",
+        "note": "аудит эндпоинтов"
+      },
+      "VII-1": {
+        "status": "pass",
+        "evidence": "audit log",
+        "note": ""
+      },
+      "VII-2": {
+        "status": "manual",
+        "evidence": "",
+        "note": "проверить наличие IP"
+      },
+      "VIII-1": {
+        "status": "pass",
+        "evidence": "ORM параметризация",
+        "note": ""
+      },
+      "VIII-2": {
+        "status": "fail",
+        "evidence": "",
+        "note": "нет CSP"
+      },
+      "VIII-3": {
+        "status": "todo",
+        "evidence": "",
+        "note": ""
+      },
+      "VIII-5": {
+        "status": "fail",
+        "evidence": "",
+        "note": "нет HSTS/X-Frame"
+      },
+      "IX-1": {
+        "status": "pass",
+        "evidence": "TLS на прокси",
+        "note": ""
+      },
+      "IX-2": {
+        "status": "todo",
+        "evidence": "",
+        "note": "шифрование полей ПДн"
+      },
+      "IX-4": {
+        "status": "pass",
+        "evidence": ".env вне репо",
+        "note": ""
+      },
+      "XI-3": {
+        "status": "manual",
+        "evidence": "",
+        "note": ""
+      },
+      "INF-3": {
+        "status": "todo",
+        "evidence": "",
+        "note": "заявка в реестр"
+      }
+    }
+  }
+}

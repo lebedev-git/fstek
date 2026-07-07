@@ -1,0 +1,67 @@
+{
+  "norm": "Приказ ФСТЭК России №117 от 11.04.2025 (действует с 01.03.2026)",
+  "note": "Практическая проекция требований на веб-ГИС. Финальный набор мер закрепляет модель угроз конкретной системы + методические документы ФСТЭК. Балл = трекинг-готовность, не гарантия аттестации.",
+  "groups": [
+    { "id": "PRE", "title": "Предусловия" },
+    { "id": "V", "title": "Идентификация и аутентификация (ИАФ)" },
+    { "id": "VI", "title": "Управление доступом (УПД)" },
+    { "id": "VII", "title": "Регистрация событий (аудит, РСБ)" },
+    { "id": "VIII", "title": "Целостность и защита среды" },
+    { "id": "IX", "title": "Криптографическая защита" },
+    { "id": "X", "title": "Антивирусная защита (АВЗ)" },
+    { "id": "XI", "title": "Обнаружение вторжений и мониторинг" },
+    { "id": "INF", "title": "Инфраструктура и ПО" },
+    { "id": "ATT", "title": "Аттестация" }
+  ],
+  "measures": [
+    { "id": "PRE-1", "group": "PRE", "title": "Акт классификации системы (класс К? + УЗ?)", "responsibility": "customer", "autoCheckable": false, "normRef": "№117 / ПП 1119" },
+    { "id": "PRE-2", "group": "PRE", "title": "Модель угроз по Методике ФСТЭК 2021 + БДУ", "responsibility": "joint", "autoCheckable": false, "normRef": "Методика ФСТЭК 2021" },
+    { "id": "PRE-3", "group": "PRE", "title": "ТЗ на защиту информации", "responsibility": "joint", "autoCheckable": false, "normRef": "№117" },
+    { "id": "PRE-4", "group": "PRE", "title": "Разработка по ГОСТ Р 56939-2024 (безопасный ЖЦ)", "responsibility": "dev", "autoCheckable": false, "normRef": "ГОСТ Р 56939-2024" },
+
+    { "id": "V-1", "group": "V", "title": "Уникальный ID пользователям, процессам, устройствам", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.V" },
+    { "id": "V-2", "group": "V", "title": "Нет общих/анонимных аккаунтов", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.V" },
+    { "id": "V-3", "group": "V", "title": "Парольная политика: длина, сложность, срок, история", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.V" },
+    { "id": "V-4", "group": "V", "title": "Блокировка после N неудачных попыток входа", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.V" },
+    { "id": "V-5", "group": "V", "title": "MFA для привилегированных учётных записей", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.V" },
+    { "id": "V-6", "group": "V", "title": "Пароли хранятся хешем (bcrypt/argon2), не в открытом виде", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.V" },
+
+    { "id": "VI-1", "group": "VI", "title": "Ролевая модель (RBAC), минимальные права", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VI" },
+    { "id": "VI-2", "group": "VI", "title": "Разделение ролей: пользователь / админ / аудитор", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VI" },
+    { "id": "VI-3", "group": "VI", "title": "Ограничение сессий: таймаут, повторная аутентификация", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VI" },
+    { "id": "VI-4", "group": "VI", "title": "Авторизация на бэкенде для каждого API-эндпоинта (не только UI)", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VI" },
+
+    { "id": "VII-1", "group": "VII", "title": "Логирование: входы, отказы, изменения прав, доступ к ПДн", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VII" },
+    { "id": "VII-2", "group": "VII", "title": "В логе: кто, что, когда, откуда (IP), результат", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VII" },
+    { "id": "VII-3", "group": "VII", "title": "Защита логов от изменения/удаления", "responsibility": "joint", "autoCheckable": false, "normRef": "№117 гр.VII" },
+    { "id": "VII-4", "group": "VII", "title": "Хранение логов заданный срок, ротация", "responsibility": "joint", "autoCheckable": false, "normRef": "№117 гр.VII" },
+
+    { "id": "VIII-1", "group": "VIII", "title": "Защита от SQL-инъекций (параметризованные запросы)", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VIII" },
+    { "id": "VIII-2", "group": "VIII", "title": "Защита от XSS (экранирование вывода, CSP)", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VIII" },
+    { "id": "VIII-3", "group": "VIII", "title": "Защита от CSRF (токены)", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VIII" },
+    { "id": "VIII-4", "group": "VIII", "title": "Контроль целостности критичных файлов/конфигов", "responsibility": "joint", "autoCheckable": false, "normRef": "№117 гр.VIII" },
+    { "id": "VIII-5", "group": "VIII", "title": "Безопасные HTTP-заголовки (HSTS, X-Frame-Options, CSP)", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.VIII" },
+
+    { "id": "IX-1", "group": "IX", "title": "HTTPS/TLS на весь трафик", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.IX" },
+    { "id": "IX-2", "group": "IX", "title": "Шифрование ПДн в базе (чувствительные поля)", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.IX" },
+    { "id": "IX-3", "group": "IX", "title": "Сертифицированные СКЗИ при гостребованиях (ГОСТ)", "responsibility": "customer", "autoCheckable": false, "normRef": "№117 гр.IX" },
+    { "id": "IX-4", "group": "IX", "title": "Секреты (ключи, пароли БД) — вне кода, в защищённом хранилище", "responsibility": "dev", "autoCheckable": true, "normRef": "№117 гр.IX" },
+
+    { "id": "X-1", "group": "X", "title": "Проверка загружаемых файлов антивирусом", "responsibility": "joint", "autoCheckable": false, "normRef": "№117 гр.X" },
+    { "id": "X-2", "group": "X", "title": "Сертифицированный АВЗ на серверах (реестр ФСТЭК)", "responsibility": "customer", "autoCheckable": false, "normRef": "№117 гр.X" },
+
+    { "id": "XI-1", "group": "XI", "title": "Интеграция с СОВ/WAF", "responsibility": "customer", "autoCheckable": false, "normRef": "№117 гр.XI" },
+    { "id": "XI-2", "group": "XI", "title": "Метрики КЗИ/ПЗИ, оценка не реже 1 раза в 6 мес", "responsibility": "customer", "autoCheckable": false, "normRef": "№117 (КЗИ/ПЗИ)" },
+    { "id": "XI-3", "group": "XI", "title": "Управление уязвимостями: обновления в срок по №117", "responsibility": "joint", "autoCheckable": true, "normRef": "№117 (сроки устранения)" },
+
+    { "id": "INF-1", "group": "INF", "title": "Серверы в РФ, аттестованный ЦОД", "responsibility": "customer", "autoCheckable": false, "normRef": "№117 / 152-ФЗ" },
+    { "id": "INF-2", "group": "INF", "title": "Отечественная ОС/СУБД (Astra, РЕД ОС, Postgres Pro)", "responsibility": "joint", "autoCheckable": false, "normRef": "Указ №166" },
+    { "id": "INF-3", "group": "INF", "title": "ПО в Реестре российского ПО (Минцифры)", "responsibility": "dev", "autoCheckable": false, "normRef": "ПП №1236" },
+    { "id": "INF-4", "group": "INF", "title": "СЗИ из реестра ФСТЭК; для К3 — 6 класс, базовый уровень доверия", "responsibility": "customer", "autoCheckable": false, "normRef": "№117 (класс СЗИ)" },
+    { "id": "INF-5", "group": "INF", "title": "Резервное копирование + проверенное восстановление", "responsibility": "joint", "autoCheckable": false, "normRef": "№117" },
+
+    { "id": "ATT-1", "group": "ATT", "title": "Доказательная документация (как реализована каждая мера)", "responsibility": "joint", "autoCheckable": false, "normRef": "№117 / Приказ 77" },
+    { "id": "ATT-2", "group": "ATT", "title": "Аттестационные испытания силами лицензиата ТЗКИ", "responsibility": "customer", "autoCheckable": false, "normRef": "Приказ ФСТЭК №77" },
+    { "id": "ATT-3", "group": "ATT", "title": "Аттестат соответствия → ввод в эксплуатацию", "responsibility": "customer", "autoCheckable": false, "normRef": "№117" }
+  ]
+}
