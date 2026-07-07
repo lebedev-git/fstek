@@ -8,6 +8,7 @@ export default function MatrixClient({ project, groups, measures, initial }) {
   const [saving, setSaving] = useState(null);
   const [fResp, setFResp] = useState("all");
   const [fStatus, setFStatus] = useState("all");
+  const [showLegend, setShowLegend] = useState(false);
 
   async function update(measureId, patch) {
     setSaving(measureId);
@@ -38,7 +39,14 @@ export default function MatrixClient({ project, groups, measures, initial }) {
 
   return (
     <div className="space-y-5">
-      <header className="flex items-center justify-end flex-wrap gap-3">
+      <header className="flex items-start justify-between flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => setShowLegend((v) => !v)}
+          className="text-sm text-slate-500 hover:text-brand underline decoration-dotted"
+        >
+          {showLegend ? "Скрыть" : "Что означают статусы?"}
+        </button>
         <div className="flex gap-3 text-sm">
           <select value={fResp} onChange={(e) => setFResp(e.target.value)} className="border rounded-md px-2 py-1">
             <option value="all">Все зоны</option>
@@ -55,13 +63,30 @@ export default function MatrixClient({ project, groups, measures, initial }) {
         </div>
       </header>
 
+      {showLegend && (
+        <div className="bg-white border border-slate-200 rounded-xl p-4 grid sm:grid-cols-2 gap-3">
+          {STATUS_ORDER.map((s) => (
+            <div key={s} className="flex gap-2.5">
+              <span className={`${STATUS_META[s].cls} w-3 h-3 rounded-full mt-1 shrink-0`} />
+              <div>
+                <div className="text-sm font-medium">{STATUS_META[s].label}</div>
+                <div className="text-xs text-slate-500 leading-relaxed">{STATUS_META[s].when}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {groups.map((g) => {
         const rows = filtered.filter((m) => m.group === g.id);
         if (rows.length === 0) return null;
         return (
           <section key={g.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 px-4 py-2 font-semibold text-sm border-b">
-              <span className="text-slate-400">{g.id}.</span> {g.title}
+            <div className="bg-slate-50 px-4 py-2.5 border-b">
+              <div className="font-semibold text-sm">
+                <span className="text-slate-400">{g.id}.</span> {g.title}
+              </div>
+              {g.desc && <div className="text-xs text-slate-500 mt-0.5">{g.desc}</div>}
             </div>
             <table className="w-full text-sm">
               <tbody>

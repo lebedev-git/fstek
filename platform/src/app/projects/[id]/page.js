@@ -46,12 +46,13 @@ export default async function ProjectDashboard({ params }) {
               const segs = STATUS_ORDER.map((s) => ({ s, n: gc[s] })).filter((x) => x.n > 0);
               return (
                 <div key={g.id} className="bg-white rounded-lg border border-slate-200 p-4">
-                  <div className="flex justify-between text-sm mb-2">
+                  <div className="flex justify-between text-sm mb-1">
                     <span className="font-medium">
                       <span className="text-slate-400">{g.id}.</span> {g.title}
                     </span>
-                    <span className="text-slate-500">{gc.pass}/{gc.total} выполнено</span>
+                    <span className="text-slate-500 shrink-0 ml-3">{gc.pass}/{gc.total} выполнено</span>
                   </div>
+                  {g.desc && <p className="text-xs text-slate-500 mb-2 leading-relaxed">{g.desc}</p>}
                   <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
                     {segs.map((x) => (
                       <div key={x.s} className={STATUS_META[x.s].cls}

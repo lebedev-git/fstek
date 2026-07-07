@@ -10,9 +10,97 @@
       "status": "in_review",
       "createdAt": "2026-07-01T10:00:00.000Z",
       "updatedAt": "2026-07-07T10:00:00.000Z"
+    },
+    {
+      "id": "1",
+      "name": "1",
+      "path": "",
+      "class": "К2",
+      "uz": "УЗ-1",
+      "description": "",
+      "status": "draft",
+      "createdAt": "2026-07-07T15:22:37.764Z",
+      "updatedAt": "2026-07-07T15:38:32.412Z"
     }
   ],
   "assessments": {
+    "1": {
+      "V-3": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Проверка сложности пароля не обнаружена — подтвердить вручную [авто-скан]"
+      },
+      "V-4": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Блокировка после N попыток не обнаружена [авто-скан]"
+      },
+      "V-5": {
+        "status": "manual",
+        "evidence": "",
+        "note": "MFA не обнаружена [авто-скан]"
+      },
+      "V-6": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Хеширование не обнаружено (возможно, внешняя аутентификация) — подтвердить [авто-скан]"
+      },
+      "VI-1": {
+        "status": "pass",
+        "evidence": "pipeline\\platform\\core\\llm.js:48 — messages: [{ role: \"user\", content: user }],",
+        "note": "Признаки ролевой модели [авто-скан]"
+      },
+      "VI-3": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Таймаут сессии не обнаружен [авто-скан]"
+      },
+      "VI-4": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Серверная авторизация эндпоинтов не подтверждена — проверить каждый API-роут [авто-скан]"
+      },
+      "VII-1": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Структурированное логирование не обнаружено [авто-скан]"
+      },
+      "VII-2": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Фиксация IP в логах не обнаружена [авто-скан]"
+      },
+      "VIII-1": {
+        "status": "manual",
+        "evidence": "pipeline\\platform\\core\\autofill.js:17 — [/(^|[/@])pg$|node-postgres|postgres|typeorm|prisma|sequelize/i, \"PostgreSQL\"],",
+        "note": "Найден ORM/параметризация, сырой конкатенации не видно — подтвердить отсутствие raw-запросов [авто-скан]"
+      },
+      "VIII-2": {
+        "status": "fail",
+        "evidence": "pipeline\\platform\\web\\app.js:28 — app.innerHTML = '<div class=\"muted\">Загрузка…</div>'; (+1 ещё в др. файлах)",
+        "note": "Прямая вставка HTML — риск XSS, проверить санитизацию [авто-скан]"
+      },
+      "VIII-3": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Защита от CSRF не обнаружена (для API на токенах может быть неприменимо) [авто-скан]"
+      },
+      "VIII-5": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Безопасные заголовки в коде не найдены (могут задаваться на прокси) [авто-скан]"
+      },
+      "IX-1": {
+        "status": "manual",
+        "evidence": "",
+        "note": "Принуждение HTTPS в коде не найдено (обычно на реверс-прокси) [авто-скан]"
+      },
+      "IX-4": {
+        "status": "pass",
+        "evidence": "pipeline\\03_docs\\lib\\docx_helpers.js:20 — if (process.env.APPDATA) candidates.push(path.join(process.env.APPDATA, \"npm\", \"node_modules\")); (+7 ещё в др. файлах)",
+        "note": "Секреты читаются из окружения [авто-скан]"
+      }
+    },
     "demo": {
       "V-1": {
         "status": "pass",
