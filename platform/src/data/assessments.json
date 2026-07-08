@@ -9,7 +9,7 @@
       "description": "Демонстрационная карточка для показа визуала",
       "status": "in_review",
       "createdAt": "2026-07-01T10:00:00.000Z",
-      "updatedAt": "2026-07-07T15:52:40.351Z"
+      "updatedAt": "2026-07-08T15:02:25.305Z"
     },
     {
       "id": "1",
@@ -103,8 +103,8 @@
     },
     "demo": {
       "V-1": {
-        "status": "pass",
-        "evidence": "user.id UUID в схеме",
+        "status": "todo",
+        "evidence": "",
         "note": ""
       },
       "V-2": {
